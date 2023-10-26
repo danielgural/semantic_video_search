@@ -1,0 +1,9 @@
+name: "@voxel51/ae"
+description: Semantic Video Search
+version: 1.0.0
+fiftyone:
+  version: "*"
+url: https://github.com/voxel51/fiftyone-plugins/blob/main/plugins/semantic_video_search/README.md
+license: Apache 2.0
+operators:
+  - semantic_video_search
