@@ -7,3 +7,5 @@ url: https://github.com/voxel51/fiftyone-plugins/blob/main/plugins/semantic_vide
 license: Apache 2.0
 operators:
   - semantic_video_search
+  - semantic_frames_search
+  - create_semantic_video_index
