@@ -1,6 +1,6 @@
 ## Semantic Video Search
 
-![semantic_video_search](https://github.com/danielgural/semantic_video_search/blob/main/assets/sort_by_video.gif)
+![semantic_video_search](https://github.com/danielgural/semantic_video_search/blob/main/assets/video_semantic_search.gif)
 
 This plugin is a Python plugin that allows for you to semantically search your video datasets by frames or by video!
 
@@ -41,12 +41,15 @@ export API_URL=https://api.twelvelabs.io/v1.1
 
 Alternatively, if you are running the operator as a delegated operator, you can pass them in through the app. 
 
+![index](https://github.com/danielgural/semantic_video_search/blob/main/assets/create_index.png)
+
 Choose the index name and the embeddings you would like to include in your index. After execution, videos will be uploaded and index will be created. Additionally, a new field with Twelve Labs + Index Name will be added to your sample to correlate a sample with a Twelve Labs UID.
 
 After your index has been created, its time for search! To use semantic video search, input the index name you want to search on, the prompt you are searching through, and which embeddings to search through. Your index needs to have these embeddings in order to search. Afterwards, your dataset will be sorted based on the most similar samples!
 
 Here's a quick demo below!
 
+![sort](https://github.com/danielgural/semantic_video_search/blob/main/assets/sort_by_frames.gif)
 
 ## Semantic Frames Search
 
@@ -71,3 +74,5 @@ session = fo.launch_app(frames) #run plugin
 ```
 
 Afterwards, choose to sort by frames or videos. This determines what type of view, video or frames, is returned. Pass a prompt in and sort your dataset!
+
+![sort_frames](https://github.com/danielgural/semantic_video_search/blob/main/assets/sort_by_video.gif)
