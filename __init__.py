@@ -123,13 +123,9 @@ class SemanticVideoBackend(foo.Operator):
         ctx.dataset.compute_metadata()
         target = ctx.params.get("target", None)
         target_view = _get_target_view(ctx, target)
-        API_URL = os.getenv("TWELVE_API_URL")
 
-        API_KEY = os.getenv("TWELVE_API_KEY")
-        if ctx.params.get("delegate", None):
-            API_URL = ctx.params.get("TWELVE_API_URL", None)
-
-            API_KEY = ctx.params.get("TWELVE_API_KEY", None)
+        API_URL = ctx.secrets["TWELVE_API_URL"]
+        API_KEY = ctx.secrets["TWELVE_API_KEY"]
 
         INDEX_NAME = ctx.params.get("index_name")
 
@@ -220,50 +216,81 @@ class SemanticVideoSearch(foo.Operator):
     
     def resolve_input(self, ctx):
         inputs = types.Object()
-        inputs.message(
-            "Notice", 
-            label="Semantic Video Search", 
-            description="Search through your video dataset with a prompt. If you haven't yet \
-                 generated a similarity index with Twelve Labs, run the creaet semantic video index \
-                      operator first! Note, you can only search on modalities within your chosen index!"
-        )
-        inputs.str("index_name", label="Index_Name", required=True)
-        inputs.str("prompt", label="Prompt", required=True)
 
-        inputs.view(
-            "header", 
-            types.Header(label="Select modalities for search", description="Select one or more from the below to search through your videos. Note: your index must have this modality!", divider=True)
-        )
-        inputs.bool(
-            "visual",
-            label="visual",
-            description="",
-            view=types.CheckboxView(),
-        )
-        inputs.bool(
-            "conversation",
-            label="conversation",
-            description="Video must have audio to work!",
-            view=types.CheckboxView(),
-        )
-        inputs.bool(
-            "text_in_video",
-            label="text_in_video",
-            description="",
-            view=types.CheckboxView(),
-        )
-        inputs.bool(
-            "logo",
-            label="logo",
-            description="",
-            view=types.CheckboxView(),
-        )
+        API_URL = ctx.secrets.get("TWELVE_API_URL",None)
+        API_KEY = ctx.secrets.get("TWELVE_API_KEY",None)
 
-        inputs.view(
-            "header2", 
-            types.Header(label="Advise delegating to avoid timeout", description="", divider=True)
+        #API_URL = os.getenv("TWELVE_API_URL")
+        #API_KEY = os.getenv("TWELVE_API_KEY")
+
+        if API_URL or API_KEY is None:
+            inputs.view(
+                "warning", 
+                types.Warning(label="Twelve Lab keys undefined", 
+                description="Please define the enviroment variables TWELVE_API_KEY and TWELVE_API_URL and reload" + str(ctx.secrets) )
         )
-        _execution_mode(ctx, inputs)
+        else:
+            INDEXES_URL = f"{API_URL}/indexes"
+
+            headers = {
+                "x-api-key": API_KEY,
+                "Content-Type": "application/json"
+            } 
+
+            response = requests.get(INDEXES_URL, headers=headers)
+
+            if response.json()["data"] == []:
+                inputs.view(
+                    "No Index", 
+                    types.Warning(label="No Indexes detected", 
+                    description="Please run `create semantic video index` first in order to semantic search on your dataset!")
+                )
+
+            
+            inputs.message(
+                "Notice", 
+                label="Semantic Video Search", 
+                description="Search through your video dataset with a prompt. If you haven't yet \
+                    generated a similarity index with Twelve Labs, run the creaet semantic video index \
+                        operator first! Note, you can only search on modalities within your chosen index!"
+            )
+            inputs.str("index_name", label="Index_Name", required=True)
+            inputs.str("prompt", label="Prompt", required=True)
+
+            inputs.view(
+                "header", 
+                types.Header(label="Select modalities for search", description="Select one or more from the below to search through your videos. Note: your index must have this modality!", divider=True)
+            )
+            inputs.bool(
+                "visual",
+                label="visual",
+                description="",
+                view=types.CheckboxView(),
+            )
+            inputs.bool(
+                "conversation",
+                label="conversation",
+                description="Video must have audio to work!",
+                view=types.CheckboxView(),
+            )
+            inputs.bool(
+                "text_in_video",
+                label="text_in_video",
+                description="",
+                view=types.CheckboxView(),
+            )
+            inputs.bool(
+                "logo",
+                label="logo",
+                description="",
+                view=types.CheckboxView(),
+            )
+
+            inputs.view(
+                "header2", 
+                types.Header(label="Advise delegating to avoid timeout", description="", divider=True)
+            )
+            _execution_mode(ctx, inputs)
         
         return types.Property(inputs)
     
@@ -272,16 +299,11 @@ class SemanticVideoSearch(foo.Operator):
     
     def execute(self, ctx):
 
-        API_URL = os.getenv("TWELVE_API_URL")
-        print(API_URL)
+        API_URL = ctx.secrets["TWELVE_API_URL"]
+        API_KEY = ctx.secrets["TWELVE_API_KEY"]
 
-        API_KEY = os.getenv("TWELVE_API_KEY")
-        print(API_KEY)
-
-        if ctx.params.get("delegate", None):
-            API_URL = ctx.params.get("TWELVE_API_URL", None)
-
-            API_KEY = ctx.params.get("TWELVE_API_KEY", None)
+        assert API_KEY, "Env variable TWELVE_API_KEY not defined."
+        assert API_URL, "Env variable TWELVE_API_URL not defined."
 
         INDEX_NAME = ctx.params.get("index_name")
 
@@ -473,8 +495,7 @@ def _execution_mode(ctx, inputs):
                 )
             ),
         )
-        inputs.str("TWELVE_API_KEY", label="TWELVE_API_KEY", required=True)
-        inputs.str("TWELVE_API_URL", label="TWELVE_API_URL", required=True)
+
 
     
 
