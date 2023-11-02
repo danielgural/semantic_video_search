@@ -123,9 +123,10 @@ class SemanticVideoBackend(foo.Operator):
         ctx.dataset.compute_metadata()
         target = ctx.params.get("target", None)
         target_view = _get_target_view(ctx, target)
-        API_URL = os.getenv("TWELVE_API_URL")
 
+        API_URL = os.getenv("TWELVE_API_URL")
         API_KEY = os.getenv("TWELVE_API_KEY")
+
         if ctx.params.get("delegate", None):
             API_URL = ctx.params.get("TWELVE_API_URL", None)
 
@@ -220,12 +221,13 @@ class SemanticVideoSearch(foo.Operator):
     
     def resolve_input(self, ctx):
         inputs = types.Object()
+            
         inputs.message(
             "Notice", 
             label="Semantic Video Search", 
             description="Search through your video dataset with a prompt. If you haven't yet \
-                 generated a similarity index with Twelve Labs, run the creaet semantic video index \
-                      operator first! Note, you can only search on modalities within your chosen index!"
+                generated a similarity index with Twelve Labs, run the create semantic video index \
+                    operator first! Note, you can only search on modalities within your chosen index!"
         )
         inputs.str("index_name", label="Index_Name", required=True)
         inputs.str("prompt", label="Prompt", required=True)
@@ -273,15 +275,15 @@ class SemanticVideoSearch(foo.Operator):
     def execute(self, ctx):
 
         API_URL = os.getenv("TWELVE_API_URL")
-        print(API_URL)
-
         API_KEY = os.getenv("TWELVE_API_KEY")
-        print(API_KEY)
 
         if ctx.params.get("delegate", None):
             API_URL = ctx.params.get("TWELVE_API_URL", None)
 
             API_KEY = ctx.params.get("TWELVE_API_KEY", None)
+
+        assert API_KEY, "Env variable TWELVE_API_KEY not defined."
+        assert API_URL, "Env variable TWELVE_API_URL not defined."
 
         INDEX_NAME = ctx.params.get("index_name")
 
@@ -320,7 +322,21 @@ class SemanticVideoSearch(foo.Operator):
         response = requests.post(SEARCH_URL, headers=headers, json=data)
         video_ids = [entry['video_id'] for entry in response.json()['data']]
         print(response.json())
-        ctx.trigger("set_view", {"view": ctx.dataset.select_by("Twelve Labs " + INDEX_NAME, video_ids,ordered=True)._serialize()})
+        samples = []
+        view1 = ctx.dataset.select_by("Twelve Labs " + INDEX_NAME, video_ids,ordered=True)
+        start = [entry['start'] for entry in response.json()['data']]
+        end = [entry['end'] for entry in response.json()['data']]
+        ctx.dataset.delete_sample_field("results")
+
+        i=0
+        for sample in view1:
+            support = [int(start[i]*sample.metadata.frame_rate)+1 ,int(end[i]*sample.metadata.frame_rate)+1]
+            sample["results"] = fo.TemporalDetection(label=prompt, support=tuple(support))
+            sample.save()
+
+        view2 = view1.to_clips("results")
+        ctx.trigger("set_view", {"view": view2._serialize()})
+        
         return {}
     
 def get_target_view(ctx, inputs):
@@ -475,6 +491,8 @@ def _execution_mode(ctx, inputs):
         )
         inputs.str("TWELVE_API_KEY", label="TWELVE_API_KEY", required=True)
         inputs.str("TWELVE_API_URL", label="TWELVE_API_URL", required=True)
+
+
 
     
 
