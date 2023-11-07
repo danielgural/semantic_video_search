@@ -124,8 +124,13 @@ class SemanticVideoBackend(foo.Operator):
         target = ctx.params.get("target", None)
         target_view = _get_target_view(ctx, target)
 
-        API_URL = ctx.secrets["TWELVE_API_URL"]
-        API_KEY = ctx.secrets["TWELVE_API_KEY"]
+        API_URL = os.getenv("TWELVE_API_URL")
+        API_KEY = os.getenv("TWELVE_API_KEY")
+
+        if ctx.params.get("delegate", None):
+            API_URL = ctx.params.get("TWELVE_API_URL", None)
+
+            API_KEY = ctx.params.get("TWELVE_API_KEY", None)
 
         INDEX_NAME = ctx.params.get("index_name")
 
@@ -203,6 +208,7 @@ class SemanticVideoBackend(foo.Operator):
         return {}
 
 
+
 class SemanticVideoSearch(foo.Operator):
     @property
     def config(self):
@@ -217,17 +223,17 @@ class SemanticVideoSearch(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
 
-        API_URL = ctx.secrets.get("TWELVE_API_URL",None)
-        API_KEY = ctx.secrets.get("TWELVE_API_KEY",None)
+        #API_URL = ctx.secret("TWELVE_API_URL")
+        #API_KEY = ctx.secret("TWELVE_API_KEY")
 
-        #API_URL = os.getenv("TWELVE_API_URL")
-        #API_KEY = os.getenv("TWELVE_API_KEY")
+        API_URL = os.getenv("TWELVE_API_URL")
+        API_KEY = os.getenv("TWELVE_API_KEY")
 
-        if API_URL or API_KEY is None:
+        if API_URL is None or API_KEY is None:
             inputs.view(
                 "warning", 
                 types.Warning(label="Twelve Lab keys undefined", 
-                description="Please define the enviroment variables TWELVE_API_KEY and TWELVE_API_URL and reload" + str(ctx.secrets) )
+                description="Please define the enviroment variables TWELVE_API_KEY and TWELVE_API_URL and reload")
         )
         else:
             INDEXES_URL = f"{API_URL}/indexes"
@@ -239,58 +245,114 @@ class SemanticVideoSearch(foo.Operator):
 
             response = requests.get(INDEXES_URL, headers=headers)
 
+
+
             if response.json()["data"] == []:
                 inputs.view(
                     "No Index", 
                     types.Warning(label="No Indexes detected", 
                     description="Please run `create semantic video index` first in order to semantic search on your dataset!")
                 )
+            else:
+            
 
             
-            inputs.message(
-                "Notice", 
-                label="Semantic Video Search", 
-                description="Search through your video dataset with a prompt. If you haven't yet \
-                    generated a similarity index with Twelve Labs, run the creaet semantic video index \
-                        operator first! Note, you can only search on modalities within your chosen index!"
-            )
-            inputs.str("index_name", label="Index_Name", required=True)
-            inputs.str("prompt", label="Prompt", required=True)
+                vis_flag = False
+                logo_flag = False
+                convo_flag = False
+                text_flag = False
 
-            inputs.view(
-                "header", 
-                types.Header(label="Select modalities for search", description="Select one or more from the below to search through your videos. Note: your index must have this modality!", divider=True)
-            )
-            inputs.bool(
-                "visual",
-                label="visual",
-                description="",
-                view=types.CheckboxView(),
-            )
-            inputs.bool(
-                "conversation",
-                label="conversation",
-                description="Video must have audio to work!",
-                view=types.CheckboxView(),
-            )
-            inputs.bool(
-                "text_in_video",
-                label="text_in_video",
-                description="",
-                view=types.CheckboxView(),
-            )
-            inputs.bool(
-                "logo",
-                label="logo",
-                description="",
-                view=types.CheckboxView(),
-            )
+                index_info = {}
+                for item in response.json()['data']:
+                    if "visual" in item["index_options"]:
+                        vis_flag = True
+                    if "logo" in item["index_options"]:
+                        logo_flag = True
+                    if "text_in_video" in item["index_options"]:
+                        text_flag = True
+                    if "conversation" in item["index_options"]:
+                        convo_flag = True
+                    index_info[item['index_name']] = item['_id']
+                
+                choices = index_info.keys()
+                choices_compare = [x[12:] for x in ctx.dataset.get_field_schema().keys()] #change if ever add more than Twelve Labs
+                common_index = list(set(choices_compare) & set(choices))
+                if len(common_index) < 1:
+                    inputs.view(
+                    "warning2", 
+                    types.Warning(label="Twelve Lab Video ID Missing From Sample", 
+                    description="Samples need to have a Twelve Lab Video ID associated with them.\
+                    They are found in a field called Twelve Labs (index name). If this is missing from your dataset,\
+                        make sure your dataset is persisent and to avoid losing between runs")
+                    )
+                else:
 
-            inputs.view(
-                "header2", 
-                types.Header(label="Advise delegating to avoid timeout", description="", divider=True)
-            )
-            _execution_mode(ctx, inputs)
+                    
+                    radio_group = types.RadioGroup()
+
+                    for choice in common_index:
+                        radio_group.add_choice(choice, label=choice)
+
+                    inputs.message(
+                        "Notice", 
+                        label="Semantic Video Search", 
+                        description="Search through your video dataset with a prompt. If you haven't yet \
+                            generated a similarity index with Twelve Labs, run the creaet semantic video index \
+                                operator first! Note, you can only search on modalities within your chosen index!"
+                    )
+                    if len(choices) != len(common_index):
+                        inputs.view(
+                            "warning3", 
+                            types.Warning(label="Only showing indexes that have Video IDs on the dataset.", 
+                            description="To add video IDs, run create_semantic_video_index to regenerate the index. \
+                                It will store the Video IDs in a field called Twelve Labs (index_name). If this is missing from your dataset,\
+                                make sure your dataset is persisent and to avoid losing between runs")
+                            )
+                    inputs.enum(
+                        "index_name",
+                        radio_group.values(),
+                        label="Pick an index",
+                        description="",
+                        view=types.DropdownView(),
+                        required=True,
+                    )
+                    inputs.str("prompt", label="Prompt", required=True)
+
+                    inputs.view(
+                        "header", 
+                        types.Header(label="Select modalities for search", description="Select one or more from the below to search through your videos. Note: your index must have this modality!", divider=True)
+                    )
+                    if vis_flag:
+                        inputs.bool(
+                            "visual",
+                            label="visual",
+                            description="",
+                            view=types.CheckboxView(),
+                        )
+                    if convo_flag:
+                        inputs.bool(
+                            "conversation",
+                            label="conversation",
+                            description="Video must have audio to work!",
+                            view=types.CheckboxView(),
+                        )
+                    if text_flag:
+                        inputs.bool(
+                            "text_in_video",
+                            label="text_in_video",
+                            description="",
+                            view=types.CheckboxView(),
+                        )
+                    if logo_flag:
+                        inputs.bool(
+                            "logo",
+                            label="logo",
+                            description="",
+                            view=types.CheckboxView(),
+                        )
+
+
+                    _execution_mode(ctx, inputs)
         
         return types.Property(inputs)
     
@@ -299,8 +361,10 @@ class SemanticVideoSearch(foo.Operator):
     
     def execute(self, ctx):
 
-        API_URL = ctx.secrets["TWELVE_API_URL"]
-        API_KEY = ctx.secrets["TWELVE_API_KEY"]
+        #API_URL = ctx.secrets["TWELVE_API_URL"]
+        #API_KEY = ctx.secrets["TWELVE_API_KEY"]
+        API_URL = os.getenv("TWELVE_API_URL")
+        API_KEY = os.getenv("TWELVE_API_KEY")
 
         assert API_KEY, "Env variable TWELVE_API_KEY not defined."
         assert API_URL, "Env variable TWELVE_API_URL not defined."
@@ -342,7 +406,22 @@ class SemanticVideoSearch(foo.Operator):
         response = requests.post(SEARCH_URL, headers=headers, json=data)
         video_ids = [entry['video_id'] for entry in response.json()['data']]
         print(response.json())
-        ctx.trigger("set_view", {"view": ctx.dataset.select_by("Twelve Labs " + INDEX_NAME, video_ids,ordered=True)._serialize()})
+        samples = []
+        view1 = ctx.dataset.select_by("Twelve Labs " + INDEX_NAME, video_ids,ordered=True)
+        start = [entry['start'] for entry in response.json()['data']]
+        end = [entry['end'] for entry in response.json()['data']]
+        if "results" in ctx.dataset.get_field_schema().keys():
+            ctx.dataset.delete_sample_field("results")
+
+        i=0
+        for sample in view1:
+            support = [int(start[i]*sample.metadata.frame_rate)+1 ,int(end[i]*sample.metadata.frame_rate)+1]
+            sample["results"] = fo.TemporalDetection(label=prompt, support=tuple(support))
+            sample.save()
+
+        view2 = view1.to_clips("results")
+        ctx.trigger("set_view", {"view": view2._serialize()})
+
         return {}
     
 def get_target_view(ctx, inputs):
@@ -495,6 +574,8 @@ def _execution_mode(ctx, inputs):
                 )
             ),
         )
+        inputs.str("TWELVE_API_KEY", label="TWELVE_API_KEY", required=True)
+        inputs.str("TWELVE_API_URL", label="TWELVE_API_URL", required=True)
 
 
     
