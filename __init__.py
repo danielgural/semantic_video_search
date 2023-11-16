@@ -1,4 +1,4 @@
-import fiftyone as fo
+mport fiftyone as fo
 import fiftyone.operators as foo
 from fiftyone.operators import types
 from fiftyone.brain import Similarity
@@ -73,6 +73,19 @@ class SemanticVideoBackend(foo.Operator):
     
     def resolve_input(self, ctx):
         inputs = types.Object()
+        API_URL = ctx.secret("TWELVE_API_URL")
+        API_KEY = ctx.secret("TWELVE_API_KEY")
+
+        #API_URL = os.getenv("TWELVE_API_URL")
+        #API_KEY = os.getenv("TWELVE_API_KEY")
+
+        if API_URL is None or API_KEY is None:
+            inputs.view(
+                "warning", 
+                types.Warning(label="Twelve Lab keys undefined", 
+                description="Please define the enviroment variables TWELVE_API_KEY and TWELVE_API_URL and reload")
+        )
+
         target_view = get_target_view(ctx, inputs)
         inputs.message(
             "Notice", 
@@ -124,13 +137,9 @@ class SemanticVideoBackend(foo.Operator):
         target = ctx.params.get("target", None)
         target_view = _get_target_view(ctx, target)
 
-        API_URL = os.getenv("TWELVE_API_URL")
-        API_KEY = os.getenv("TWELVE_API_KEY")
+        API_URL = ctx.secret("TWELVE_API_URL")
+        API_KEY = ctx.secret("TWELVE_API_KEY")
 
-        if ctx.params.get("delegate", None):
-            API_URL = ctx.params.get("TWELVE_API_URL", None)
-
-            API_KEY = ctx.params.get("TWELVE_API_KEY", None)
 
         INDEX_NAME = ctx.params.get("index_name")
 
@@ -223,11 +232,11 @@ class SemanticVideoSearch(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
 
-        #API_URL = ctx.secret("TWELVE_API_URL")
-        #API_KEY = ctx.secret("TWELVE_API_KEY")
+        API_URL = ctx.secret("TWELVE_API_URL")
+        API_KEY = ctx.secret("TWELVE_API_KEY")
 
-        API_URL = os.getenv("TWELVE_API_URL")
-        API_KEY = os.getenv("TWELVE_API_KEY")
+        #API_URL = os.getenv("TWELVE_API_URL")
+        #API_KEY = os.getenv("TWELVE_API_KEY")
 
         if API_URL is None or API_KEY is None:
             inputs.view(
@@ -570,12 +579,11 @@ def _execution_mode(ctx, inputs):
                     "have a delegated operation service running in order for "
                     "this task to be processed. See "
                     "https://docs.voxel51.com/plugins/index.html#operators "
-                    "for more information"
+                    "for more information. Also, dont forget to set enviroment variables in the delegated enviroment as well!"
                 )
             ),
         )
-        inputs.str("TWELVE_API_KEY", label="TWELVE_API_KEY", required=True)
-        inputs.str("TWELVE_API_URL", label="TWELVE_API_URL", required=True)
+
 
 
     
