@@ -235,6 +235,8 @@ class SemanticVideoSearch(foo.Operator):
         API_URL = ctx.secret("TWELVE_API_URL")
         API_KEY = ctx.secret("TWELVE_API_KEY")
 
+        
+
         #API_URL = os.getenv("TWELVE_API_URL")
         #API_KEY = os.getenv("TWELVE_API_KEY")
 
@@ -245,6 +247,7 @@ class SemanticVideoSearch(foo.Operator):
                 description="Please define the enviroment variables TWELVE_API_KEY and TWELVE_API_URL and reload")
         )
         else:
+            target_view = get_target_view(ctx, inputs)
             INDEXES_URL = f"{API_URL}/indexes"
 
             headers = {
@@ -370,13 +373,14 @@ class SemanticVideoSearch(foo.Operator):
     
     def execute(self, ctx):
 
-        #API_URL = ctx.secrets["TWELVE_API_URL"]
-        #API_KEY = ctx.secrets["TWELVE_API_KEY"]
-        API_URL = os.getenv("TWELVE_API_URL")
-        API_KEY = os.getenv("TWELVE_API_KEY")
+        API_URL = ctx.secret("TWELVE_API_URL")
+        API_KEY = ctx.secret("TWELVE_API_KEY")
+
 
         assert API_KEY, "Env variable TWELVE_API_KEY not defined."
         assert API_URL, "Env variable TWELVE_API_URL not defined."
+        target = ctx.params.get("target", None)
+        target_view = _get_target_view(ctx, target)
 
         INDEX_NAME = ctx.params.get("index_name")
 
@@ -416,7 +420,7 @@ class SemanticVideoSearch(foo.Operator):
         video_ids = [entry['video_id'] for entry in response.json()['data']]
         print(response.json())
         samples = []
-        view1 = ctx.dataset.select_by("Twelve Labs " + INDEX_NAME, video_ids,ordered=True)
+        view1 = target_view.select_by("Twelve Labs " + INDEX_NAME, video_ids,ordered=True)
         start = [entry['start'] for entry in response.json()['data']]
         end = [entry['end'] for entry in response.json()['data']]
         if "results" in ctx.dataset.get_field_schema().keys():
