@@ -1,4 +1,4 @@
-mport fiftyone as fo
+import fiftyone as fo
 import fiftyone.operators as foo
 from fiftyone.operators import types
 from fiftyone.brain import Similarity
