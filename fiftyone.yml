@@ -6,9 +6,8 @@ fiftyone:
 url: https://github.com/danielgural/semantic_video_search/blob/main/README.md
 license: Apache 2.0
 operators:
-  - semantic_video_search
-  - semantic_frames_search
-  - create_semantic_video_index
+  - twelve_labs_index_search
+  - create_twelve_labs_embeddings
+  - create_twelve_labs_index
 secrets:
-  - TWELVE_API_URL
-  - TWELVE_API_KEY
+  - TL_API_KEY
