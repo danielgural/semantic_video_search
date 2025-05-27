@@ -1,78 +1,143 @@
-## Semantic Video Search
+# 🎥 FiftyOne + Twelve Labs Plugin
+
+Bring multimodal video intelligence into your computer vision workflows with **FiftyOne** and **Twelve Labs**.
+
+This plugin lets you generate rich video embeddings (visual, audio, OCR, conversation) using the Twelve Labs API and organize them into a **clip-level FiftyOne dataset** for analysis, search, and iteration.
+
+> ⚡ Ideal for building your own retrieval pipelines, video QA systems, or semantic labeling tools on top of real clip-level understanding.
 
 ![semantic_video_search](https://github.com/danielgural/semantic_video_search/blob/main/assets/video_semantic_search.gif)
 
-This plugin is a Python plugin that allows for you to semantically search your video datasets by frames or by video!
+---
 
-🔎 With a single prompt, find exactly what you are looking for across every frame in your dataset!
+## ✨ Key Features
 
-## Installation
+- 🧠 Generate multimodal embeddings from full videos  
+- 🔄 Automatically split videos into meaningful **clips**  
+- 📦 Store results in a new FiftyOne dataset with clip-level granularity  
+- 🔍 Run **semantic search** over your indexed videos using prompts  
+- 🔐 Uses secure secrets (`TL_API_KEY`) for easy API access  
 
-```shell
+---
+
+## 📦 Installation
+
+Install the plugin directly in FiftyOne:
+
+```bash
 fiftyone plugins download https://github.com/danielgural/semantic_video_search
 ```
 
-## Operators
+---
 
-### `semantic_video_search`
+## 🧩 Plugin Operators
 
-Sorts based on a prompt through your video dataset for the most similar videos by using a similiarty index of your choice. Use [Twelve Labs](https://twelvelabs.io/) to create an index of your videos to do video semantic search. You can generate the index with the `create semantic video index` operator. Search on four different embeddings: visual, text in video, conversations, and logos.
+### `create_twelve_labs_embeddings`
 
-For more info on Twelve Labs Search, look [here](https://docs.twelvelabs.io/docs/search-single-queries)! Twelve Labs features a free tier so its easy to get started right away!
+Generate embeddings for your videos via the [Twelve Labs API](https://twelvelabs.io). Videos are automatically split into clips, and the resulting dataset contains embeddings from selected modalities:
 
-### `semantic_frames_search` 
+- `visual`  
+- `audio`  
 
-Sorts based on a prompt through your video dataset using single frame embeddings. You will need to generate a similarity index with FiftyOne Brain with textual embeddings before hand. You can even use Vector DB backends such as Qdrant, Pinecone, Milvus, or LanceDB for frame based search. Sort your frames as seen below, or by full video!
+Each sample afterwards contains a [TemporalDetection](https://docs.voxel51.com/user_guide/using_datasets.html#temporal-detection) correlating to its embeddings. Turn your dataset into clips with [to_clips](https://docs.voxel51.com/user_guide/using_views.html#clip-views) to use as a normal embeddings! (More below!) 
 
-![frames](https://github.com/danielgural/semantic_video_search/blob/main/assets/sort_by_frames.gif)
+> ☑️ Recommended to run as a **delegated operator** due to processing time.
 
-### `create_semantic_video_index`
+---
 
-Generates a [Twelve Labs](https://twelvelabs.io/) similarity index for you video dataset. You can change multiple parameters such as the types of embeddings to search on. The index must contain the embedding type in order to search on. You can also decide to upload your entire dataset, selected samples, or the current view to the database. It is highly recommended you [delegate](https://docs.voxel51.com/plugins/using_plugins.html#setting-up-an-orchestrator) this operator due to its long runtime. Also note that videos must be at least four seconds long!
+### `create_twelve_labs_index`
 
-## Video Semantic Search
+Creates a searchable **Twelve Labs index** from your embedded clips. Choose your index name and embedding types. You can build indexes from:
 
-To start using the Video Semantic Search, first generate a [Twelve Labs API Token](https://dashboard.twelvelabs.io/home). The token will be used by the plugin to access the Twelve Labs API. To set these variables, define them before running the app.
+- Entire dataset  
+- Current view  
+- Selected samples
 
-```
-export API_KEY=<YOUR_API_KEY>
-export API_URL=https://api.twelvelabs.io/v1.1
-```
+Note, this builds the index in Twelve Labs!
 
-Alternatively, if you are running the operator as a delegated operator, you can pass them in through the app. 
+---
 
-![index](https://github.com/danielgural/semantic_video_search/blob/main/assets/create_index.png)
+### `twelve_labs_index_search`
 
-Choose the index name and the embeddings you would like to include in your index. After execution, videos will be uploaded and index will be created. Additionally, a new field with Twelve Labs + Index Name will be added to your sample to correlate a sample with a Twelve Labs UID.
+Query your Twelve Labs index using a **natural language prompt**, and return results sorted by relevance. You can select one or more modalities to match (e.g., visual + audio + OCR).
 
-After your index has been created, its time for search! To use semantic video search, input the index name you want to search on, the prompt you are searching through, and which embeddings to search through. Your index needs to have these embeddings in order to search. Afterwards, your dataset will be sorted based on the most similar samples!
+Use this to semantically explore your video data while keeping data in Twelve Labs!
 
-Here's a quick demo below!
+---
 
-![sort](https://github.com/danielgural/semantic_video_search/blob/main/assets/sort_by_frames.gif)
+## 🔐 Environment Setup
 
-## Semantic Frames Search
+You'll need a Twelve Labs API Key.
 
-Any text similarity index should be computed before hand using [FiftyOne Brain's Compute Similarity](https://docs.voxel51.com/user_guide/brain.html#text-similarity). The similarity index should also be on the frames of the image, in order to properly generate image embeddings. 
-
-Heres an example:
-```
-import fiftyone as fo
-import fiftyone.zoo as foz
-import fiftyone.brain as fob
-
-dataset = foz.load_zoo_dataset("quickstart-video")
-frames = dataset.to_frames(sample_frames=True)
-
-results= fob.compute_similarity(
-    frames,
-    model="clip-vit-base32-torch",
-    brain_key="sim",
-)
-
-session = fo.launch_app(frames) #run plugin
+```bash
+export TL_API_KEY=<YOUR_TWELVE_LABS_API_KEY>
 ```
 
-Afterwards, choose to sort by frames or videos. This determines what type of view, video or frames, is returned. Pass a prompt in and sort your dataset!
+You can also securely store it in the FiftyOne App as a **plugin secret**.
 
-![sort_frames](https://github.com/danielgural/semantic_video_search/blob/main/assets/sort_by_video.gif)
+---
+
+## 🔁 Example Workflow
+
+1. **Generate clip-level embeddings**  
+   Run `create_twelve_labs_embeddings` on a video dataset  
+   → Creates a new dataset with embedded clips for more embedding awesomeness!
+
+2. **Index your clips**  
+   Run `create_twelve_labs_index` on the clip dataset  
+   → Builds a searchable index with selected modalities that stays in Twelve Labs
+
+3. **Search your videos**  
+   Use `twelve_labs_index_search` with a prompt  
+   → View most relevant clips inside FiftyOne!
+
+---
+
+## 📚 Resources
+
+- [Twelve Labs API Docs](https://docs.twelvelabs.io/)  
+- [FiftyOne Plugins Guide](https://docs.voxel51.com/plugins/using_plugins.html)  
+- [Official Blog](https://voxel51.com/blog)
+
+
+## Clip Dataset Conversion
+```
+import fiftyone.utils.video as fouv
+
+def create_clip_dataset(
+    dataset: fo.Dataset,
+    clip_field: str,
+    new_dataset_name: str = "clips",
+    overwrite: bool = True,
+    viz: bool = False,
+    sim: bool = False,
+) -> fo.Dataset:
+    clips = []
+    clip_view = dataset.to_clips(clip_field)
+    clip_dataset = fo.Dataset(name=new_dataset_name,overwrite=overwrite)
+    i = 0
+    last_file = ""
+    samples = []
+    for clip in clip_view:
+
+        out_path = clip.filepath.split(".")[0] + f"_{i}.mp4"
+        fpath = clip.filepath 
+        fouv.extract_clip(fpath, output_path=out_path, support=clip.support)
+        clip.filepath = out_path
+        samples.append(clip)
+        clip.filepath = fpath
+        if clip.filepath == last_file:
+            i += 1
+        else:
+            i = 0
+        last_file = clip.filepath
+    clip_dataset.add_samples(samples)
+    clip_dataset.add_sample_field("Twelve Labs Marengo-retrieval-27 Embeddings", fo.VectorField)
+    clip_dataset.set_field("Twelve Labs Marengo-retrieval-27 Embeddings", clip_view.values("Twelve Labs Marengo-retrieval-27.embedding"))
+    
+    return clip_dataset
+```
+
+## 🪪 License
+
+MIT
